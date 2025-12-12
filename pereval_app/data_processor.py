@@ -56,33 +56,61 @@ class PerevalDataProcessor:
     def _create_or_get_user(self, user_data):
         """Создает или получает существующего пользователя"""
         try:
+            # ДОБАВЬТЕ ОТЛАДОЧНУЮ ИНФОРМАЦИЮ
+            print(f"DEBUG _create_or_get_user: user_data = {user_data}")
+            print(f"DEBUG _create_or_get_user: type(user_data) = {type(user_data)}")
+            print(
+                f"DEBUG _create_or_get_user: keys = {list(user_data.keys()) if isinstance(user_data, dict) else 'NOT DICT'}")
+
+            # Проверяем наличие email
+            if 'email' not in user_data:
+                print(f"ERROR: email not in user_data!")
+                raise KeyError("Email is required")
+
+            email = user_data['email']
+            print(f"DEBUG: email = {email}")
+
             # Проверяем, существует ли пользователь
             select_query = sql.SQL("""
                 SELECT id FROM pereval_user WHERE email = %s
             """)
-            self.db.cursor.execute(select_query, (user_data['email'],))
+            self.db.cursor.execute(select_query, (email,))
             result = self.db.cursor.fetchone()
 
             if result:
+                print(f"DEBUG: User exists with id {result[0]}")
                 return result[0]  # Возвращаем существующий ID
 
             # Создаем нового пользователя
+            print(f"DEBUG: Creating new user with email {email}")
             insert_query = sql.SQL("""
                 INSERT INTO pereval_user (email, fam, name, otc, phone)
                 VALUES (%s, %s, %s, %s, %s)
                 RETURNING id
             """)
+
+            # Проверяем наличие всех полей
+            fam = user_data.get('fam', '')
+            name = user_data.get('name', '')
+            otc = user_data.get('otc', '')
+            phone = user_data.get('phone', '')
+
+            print(f"DEBUG: fam={fam}, name={name}, otc={otc}, phone={phone}")
+
             self.db.cursor.execute(insert_query, (
-                user_data['email'],
-                user_data['fam'],
-                user_data['name'],
-                user_data.get('otc', ''),
-                user_data['phone']
+                email,
+                fam,
+                name,
+                otc,
+                phone
             ))
-            return self.db.cursor.fetchone()[0]
+            user_id = self.db.cursor.fetchone()[0]
+            print(f"DEBUG: New user created with id {user_id}")
+            return user_id
 
         except Exception as e:
             logger.error(f"Error creating/getting user: {e}")
+            print(f"ERROR in _create_or_get_user: {e}")
             raise
 
     def _create_coords(self, coords_data):
@@ -140,36 +168,61 @@ class PerevalDataProcessor:
             logger.error(f"Error creating images: {e}")
             raise
 
+    def _delete_images(self, pereval_id):
+        """Удаляет все изображения перевала"""
+        try:
+            delete_query = sql.SQL("""
+                DELETE FROM pereval_image WHERE pereval_id = %s
+            """)
+            self.db.cursor.execute(delete_query, (pereval_id,))
+        except Exception as e:
+            logger.error(f"Error deleting images: {e}")
+            raise
+
+    def _update_coords(self, coords_id, coords_data):
+        """Обновляет координаты"""
+        try:
+            update_query = sql.SQL("""
+                UPDATE pereval_coords 
+                SET latitude = %s, longitude = %s, height = %s
+                WHERE id = %s
+            """)
+            self.db.cursor.execute(update_query, (
+                float(coords_data['latitude']),
+                float(coords_data['longitude']),
+                int(coords_data['height']),
+                coords_id
+            ))
+        except Exception as e:
+            logger.error(f"Error updating coords: {e}")
+            raise
+
+    def _update_level(self, level_id, level_data):
+        """Обновляет уровень сложности"""
+        try:
+            update_query = sql.SQL("""
+                UPDATE pereval_level 
+                SET winter = %s, summer = %s, autumn = %s, spring = %s
+                WHERE id = %s
+            """)
+            self.db.cursor.execute(update_query, (
+                level_data.get('winter', ''),
+                level_data.get('summer', ''),
+                level_data.get('autumn', ''),
+                level_data.get('spring', ''),
+                level_id
+            ))
+        except Exception as e:
+            logger.error(f"Error updating level: {e}")
+            raise
+
     def submit_data(self, data):
         """
         Основной метод для добавления данных о перевале
         """
-        # Проверка обязательных полей
-        required_fields = ['beauty_title', 'title', 'user', 'coords', 'level', 'images']
-        missing_fields = []
-
-        for field in required_fields:
-            if field not in data:
-                missing_fields.append(field)
-
-        if missing_fields:
-            return {
-                "status": 400,
-                "message": f"Missing required fields: {', '.join(missing_fields)}",
-                "id": None
-            }
-
-        # Проверка полей пользователя
-        user_fields = ['email', 'fam', 'name', 'phone']
-        user_data = data.get('user', {})
-
-        for field in user_fields:
-            if field not in user_data:
-                return {
-                    "status": 400,
-                    "message": f"Missing required user field: {field}",
-                    "id": None
-                }
+        print(f"DEBUG submit_data: Получены данные")
+        print(f"DEBUG submit_data: type(data) = {type(data)}")
+        print(f"DEBUG submit_data: keys = {list(data.keys())}")
 
         try:
             # Подключение к БД
@@ -184,6 +237,28 @@ class PerevalDataProcessor:
             self.db.cursor.execute("BEGIN")
 
             # 1. Создаем/получаем пользователя
+            print(f"DEBUG submit_data: data['user'] = {data.get('user', {})}")
+            print(f"DEBUG submit_data: type(data['user']) = {type(data.get('user', {}))}")
+
+            # ИСПРАВЛЕНИЕ: Добавляем проверку и логирование
+            user_data = data.get('user', {})
+            if not user_data:
+                print("ERROR: User data is empty!")
+                return {
+                    "status": 400,
+                    "message": "Данные пользователя отсутствуют",
+                    "id": None
+                }
+
+            # Проверяем наличие email
+            if 'email' not in user_data:
+                print(f"ERROR: Email not found in user_data. Keys: {list(user_data.keys())}")
+                return {
+                    "status": 400,
+                    "message": "Email пользователя обязателен",
+                    "id": None
+                }
+
             user_id = self._create_or_get_user(user_data)
 
             # 2. Создаем координаты
@@ -318,5 +393,176 @@ class PerevalDataProcessor:
         except Exception as e:
             logger.error(f"Error getting pereval: {e}")
             return None
+        finally:
+            self.db.disconnect()
+
+    def update_pereval(self, pereval_id, data):
+        """Обновление данных перевала"""
+        try:
+            if not self.db.connect():
+                return {
+                    "state": 0,
+                    "message": "Ошибка подключения к базе данных"
+                }
+
+            # Проверяем статус перевала
+            status_query = sql.SQL("""
+                SELECT status, user_id, coords_id, level_id 
+                FROM pereval 
+                WHERE id = %s
+            """)
+            self.db.cursor.execute(status_query, (pereval_id,))
+            result = self.db.cursor.fetchone()
+
+            if not result:
+                return {
+                    "state": 0,
+                    "message": f"Перевал с ID {pereval_id} не найден"
+                }
+
+            status, user_id, coords_id, level_id = result
+
+            # Проверяем, можно ли редактировать (только статус 'new')
+            if status != 'new':
+                return {
+                    "state": 0,
+                    "message": f"Редактирование запрещено. Текущий статус: {status}"
+                }
+
+            # Начинаем транзакцию
+            self.db.cursor.execute("BEGIN")
+
+            # Обновляем координаты
+            if 'coords' in data:
+                self._update_coords(coords_id, data['coords'])
+
+            # Обновляем уровень сложности
+            if 'level' in data:
+                self._update_level(level_id, data['level'])
+
+            # Обновляем основные данные перевала
+            update_fields = []
+            update_values = []
+
+            if 'beauty_title' in data:
+                update_fields.append("beauty_title = %s")
+                update_values.append(data['beauty_title'])
+
+            if 'title' in data:
+                update_fields.append("title = %s")
+                update_values.append(data['title'])
+
+            if 'other_titles' in data:
+                update_fields.append("other_titles = %s")
+                update_values.append(data['other_titles'])
+
+            if 'connect' in data:
+                update_fields.append("connect = %s")
+                update_values.append(data['connect'])
+
+            if update_fields:
+                update_query = sql.SQL(f"""
+                    UPDATE pereval 
+                    SET {', '.join(update_fields)}
+                    WHERE id = %s
+                """)
+                update_values.append(pereval_id)
+                self.db.cursor.execute(update_query, tuple(update_values))
+
+            # Обновляем изображения (удаляем старые, добавляем новые)
+            if 'images' in data:
+                self._delete_images(pereval_id)
+                self._create_images(pereval_id, data['images'])
+
+            # Фиксируем транзакцию
+            self.db.conn.commit()
+
+            return {
+                "state": 1,
+                "message": "Запись успешно обновлена"
+            }
+
+        except Exception as e:
+            if self.db.conn:
+                self.db.conn.rollback()
+
+            logger.error(f"Error updating pereval {pereval_id}: {e}")
+            return {
+                "state": 0,
+                "message": f"Ошибка при обновлении: {str(e)}"
+            }
+
+        finally:
+            self.db.disconnect()
+
+    def get_perevals_by_email(self, email):
+        """Получение всех перевалов по email пользователя"""
+        try:
+            if not self.db.connect():
+                return []
+
+            query = sql.SQL("""
+                SELECT 
+                    p.id, p.beauty_title, p.title, p.other_titles, p.connect,
+                    p.add_time, p.status,
+                    u.email, u.fam, u.name, u.otc, u.phone,
+                    c.latitude, c.longitude, c.height,
+                    l.winter, l.summer, l.autumn, l.spring
+                FROM pereval p
+                JOIN pereval_user u ON p.user_id = u.id
+                JOIN pereval_coords c ON p.coords_id = c.id
+                JOIN pereval_level l ON p.level_id = l.id
+                WHERE u.email = %s
+                ORDER BY p.add_time DESC
+            """)
+
+            self.db.cursor.execute(query, (email,))
+            results = self.db.cursor.fetchall()
+
+            perevals = []
+            for result in results:
+                # Получаем изображения для каждого перевала
+                img_query = sql.SQL("""
+                    SELECT data, title FROM pereval_image 
+                    WHERE pereval_id = %s
+                """)
+                self.db.cursor.execute(img_query, (result[0],))
+                images = [{'data': row[0], 'title': row[1]} for row in self.db.cursor.fetchall()]
+
+                pereval = {
+                    "id": result[0],
+                    "beauty_title": result[1],
+                    "title": result[2],
+                    "other_titles": result[3],
+                    "connect": result[4],
+                    "add_time": result[5],
+                    "status": result[6],
+                    "user": {
+                        "email": result[7],
+                        "fam": result[8],
+                        "name": result[9],
+                        "otc": result[10],
+                        "phone": result[11]
+                    },
+                    "coords": {
+                        "latitude": float(result[12]),
+                        "longitude": float(result[13]),
+                        "height": result[14]
+                    },
+                    "level": {
+                        "winter": result[15],
+                        "summer": result[16],
+                        "autumn": result[17],
+                        "spring": result[18]
+                    },
+                    "images": images
+                }
+                perevals.append(pereval)
+
+            return perevals
+
+        except Exception as e:
+            logger.error(f"Error getting perevals by email {email}: {e}")
+            return []
         finally:
             self.db.disconnect()
