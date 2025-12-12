@@ -56,7 +56,6 @@ class PerevalDataProcessor:
     def _create_or_get_user(self, user_data):
         """Создает или получает существующего пользователя"""
         try:
-            # ДОБАВЬТЕ ОТЛАДОЧНУЮ ИНФОРМАЦИЮ
             print(f"DEBUG _create_or_get_user: user_data = {user_data}")
             print(f"DEBUG _create_or_get_user: type(user_data) = {type(user_data)}")
             print(
@@ -240,7 +239,6 @@ class PerevalDataProcessor:
             print(f"DEBUG submit_data: data['user'] = {data.get('user', {})}")
             print(f"DEBUG submit_data: type(data['user']) = {type(data.get('user', {}))}")
 
-            # ИСПРАВЛЕНИЕ: Добавляем проверку и логирование
             user_data = data.get('user', {})
             if not user_data:
                 print("ERROR: User data is empty!")
