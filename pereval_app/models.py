@@ -70,9 +70,9 @@ class Pereval(models.Model):
     add_time = models.DateTimeField(auto_now_add=True, verbose_name="Время добавления")
 
     # Связи с другими моделями
-    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Пользователь")
-    coords = models.ForeignKey(Coords, on_delete=models.CASCADE, verbose_name="Координаты")
-    level = models.ForeignKey(Level, on_delete=models.CASCADE, verbose_name="Уровень сложности")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Пользователь", related_name='perevals')
+    coords = models.ForeignKey(Coords, on_delete=models.CASCADE, verbose_name="Координаты", related_name='perevals')
+    level = models.ForeignKey(Level, on_delete=models.CASCADE, verbose_name="Уровень сложности", related_name='perevals')
 
     # Статус модерации
     status = models.CharField(
@@ -91,11 +91,15 @@ class Pereval(models.Model):
     def __str__(self):
         return f"{self.title} ({self.beauty_title}) - {self.get_status_display()}"
 
+    def can_be_edited(self):
+        """Проверка, можно ли редактировать запись"""
+        return self.status == 'new'
+
 
 class Image(models.Model):
     """Модель изображения"""
     pereval = models.ForeignKey(Pereval, on_delete=models.CASCADE, related_name='images', verbose_name="Перевал")
-    data = models.TextField(verbose_name="Данные изображения (base64)")  # Храним base64
+    data = models.TextField(verbose_name="Данные изображения (base64)")
     title = models.CharField(max_length=255, verbose_name="Название изображения")
     date_added = models.DateTimeField(auto_now_add=True, verbose_name="Время добавления")
 
