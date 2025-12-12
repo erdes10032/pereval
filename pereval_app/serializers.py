@@ -5,16 +5,46 @@ from .models import User, Coords, Level, Pereval, Image
 
 
 class UserSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(validators=[])  # Убираем стандартные валидаторы
+
     class Meta:
         model = User
         fields = ['email', 'fam', 'name', 'otc', 'phone']
-        read_only_fields = ['email', 'fam', 'name', 'otc', 'phone']  # Запрещаем редактирование
+        extra_kwargs = {
+            'email': {'validators': []},
+            'fam': {'validators': []},
+            'name': {'validators': []},
+            'otc': {'validators': []},
+            'phone': {'validators': []},
+        }
 
-    def validate_email(self, value):
-        """Проверка уникальности email"""
-        if User.objects.filter(email=value).exists():
-            pass
-        return value
+    def validate(self, data):
+        """Валидация пользователя - только обязательные поля"""
+        # Обязательные поля
+        required_fields = ['email', 'fam', 'name', 'phone']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                raise serializers.ValidationError(
+                    f"Поле '{field}' обязательно для пользователя"
+                )
+        return data
+
+    def create(self, validated_data):
+        """Создание или получение пользователя"""
+        user, created = User.objects.get_or_create(
+            email=validated_data['email'],
+            defaults={
+                'fam': validated_data.get('fam', ''),
+                'name': validated_data.get('name', ''),
+                'otc': validated_data.get('otc', ''),
+                'phone': validated_data.get('phone', '')
+            }
+        )
+        return user
+
+    def update(self, instance, validated_data):
+        """Обновление - только при создании, при обновлении не вызывается"""
+        raise serializers.ValidationError("Обновление данных пользователя запрещено")
 
 
 class CoordsSerializer(serializers.ModelSerializer):
@@ -61,10 +91,16 @@ class PerevalSerializer(serializers.Serializer):
     level = LevelSerializer(required=True)
     images = ImageSerializer(many=True, required=True)
 
+    def __init__(self, *args, **kwargs):
+        """Передаем контекст в UserSerializer"""
+        super().__init__(*args, **kwargs)
+        if 'user' in self.fields:
+            self.fields['user'].context['is_create'] = True
+
     def validate(self, data):
-        """Упрощенная валидация - только обязательные поля"""
+        """Общая валидация"""
         if 'images' not in data or not data['images']:
-            raise serializers.ValidationError("At least one image is required")
+            raise serializers.ValidationError("Необходимо хотя бы одно изображение")
         return data
 
 
@@ -82,4 +118,7 @@ class PerevalUpdateSerializer(serializers.Serializer):
         """Проверяем, что есть хотя бы одно поле для обновления"""
         if not data:
             raise serializers.ValidationError("Нет данных для обновления")
+        # Проверяем, чтобы не было полей пользователя
+        if any(field in data for field in ['email', 'fam', 'name', 'otc', 'phone']):
+            raise serializers.ValidationError("Изменение данных пользователя запрещено")
         return data
