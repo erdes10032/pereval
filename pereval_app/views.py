@@ -46,7 +46,7 @@ class SubmitDataView(APIView):
 
             result = []
             for pereval in perevals:
-                pereval_data = self._serialize_pereval(pereval)
+                pereval_data = self._serialize_pereval(pereval, request)
                 result.append(pereval_data)
 
             return Response({
@@ -127,8 +127,19 @@ class SubmitDataView(APIView):
                 "id": None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def _serialize_pereval(self, pereval):
+    def _serialize_pereval(self, pereval, request):
         """Сериализация объекта перевала"""
+        # Получаем полный URL для изображений
+        images_data = []
+        for img in pereval.images.all():
+            if img.image:
+                # Формируем полный URL до изображения
+                image_url = request.build_absolute_uri(img.image.url) if img.image else None
+                images_data.append({
+                    "image_url": image_url,
+                    "title": img.title
+                })
+
         return {
             "id": pereval.id,
             "beauty_title": pereval.beauty_title,
@@ -155,10 +166,7 @@ class SubmitDataView(APIView):
                 "autumn": pereval.level.autumn,
                 "spring": pereval.level.spring
             },
-            "images": [
-                {"data": img.data, "title": img.title}
-                for img in pereval.images.all()
-            ]
+            "images": images_data
         }
 
 
@@ -184,6 +192,16 @@ class PerevalDetailView(APIView):
                 }, status=status.HTTP_404_NOT_FOUND)
 
             # Сериализуем данные
+            images_data = []
+            for img in pereval.images.all():
+                if img.image:
+                    # Формируем полный URL до изображения
+                    image_url = request.build_absolute_uri(img.image.url) if img.image else None
+                    images_data.append({
+                        "image_url": image_url,
+                        "title": img.title
+                    })
+
             pereval_data = {
                 "id": pereval.id,
                 "beauty_title": pereval.beauty_title,
@@ -210,10 +228,7 @@ class PerevalDetailView(APIView):
                     "autumn": pereval.level.autumn,
                     "spring": pereval.level.spring
                 },
-                "images": [
-                    {"data": img.data, "title": img.title}
-                    for img in pereval.images.all()
-                ]
+                "images": images_data
             }
 
             return Response({
@@ -294,10 +309,11 @@ class PerevalDetailView(APIView):
 
                 # Обновляем изображения
                 if 'images' in serializer.validated_data:
-                    # Удаляем старые изображения
-                    pereval.images.all().delete()
+                    # Удаляем старые изображения (и их файлы)
+                    for img in pereval.images.all():
+                        img.delete()
 
-                    # Создаем новые
+                    # Создаем новые изображения
                     images_data = serializer.validated_data.pop('images')
                     for img_data in images_data:
                         Image.objects.create(pereval=pereval, **img_data)

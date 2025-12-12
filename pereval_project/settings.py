@@ -79,11 +79,11 @@ WSGI_APPLICATION = 'pereval_project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'pereval',
-        'USER': os.getenv('FSTR_DB_LOGIN'),
-        'PASSWORD': os.getenv('FSTR_DB_PASS'),
-        'HOST': os.getenv('FSTR_DB_HOST'),
-        'PORT': os.getenv('FSTR_DB_PORT'),
+        'NAME': os.getenv('FSTR_DB_NAME', 'pereval'),
+        'USER': os.getenv('FSTR_DB_LOGIN', 'postgres'),
+        'PASSWORD': os.getenv('FSTR_DB_PASS', ''),
+        'HOST': os.getenv('FSTR_DB_HOST', 'localhost'),
+        'PORT': os.getenv('FSTR_DB_PORT', '5432'),
     }
 }
 

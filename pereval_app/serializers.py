@@ -1,11 +1,13 @@
 from rest_framework import serializers
 from datetime import datetime
 import base64
+import uuid
+from django.core.files.base import ContentFile
 from .models import User, Coords, Level, Pereval, Image
 
 
 class UserSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(validators=[])  # Убираем стандартные валидаторы
+    email = serializers.EmailField(validators=[])
 
     class Meta:
         model = User
@@ -20,7 +22,6 @@ class UserSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Валидация пользователя - только обязательные поля"""
-        # Обязательные поля
         required_fields = ['email', 'fam', 'name', 'phone']
         for field in required_fields:
             if field not in data or not data[field]:
@@ -59,25 +60,46 @@ class LevelSerializer(serializers.ModelSerializer):
         fields = ['winter', 'summer', 'autumn', 'spring']
 
 
-class ImageSerializer(serializers.Serializer):
-    data = serializers.CharField(required=True)
-    title = serializers.CharField(required=True, max_length=255)
+class Base64ImageField(serializers.ImageField):
+    """
+    Поле для декодирования base64 в файл изображения
+    """
 
-    def validate_data(self, value):
-        """Проверка формата изображения"""
-        if isinstance(value, str) and value.startswith('data:image'):
+    def to_internal_value(self, data):
+        if isinstance(data, str) and data.startswith('data:image'):
+            # Формат: data:image/jpeg;base64,<данные>
             try:
-                # Проверяем, что это валидный base64
-                base64.b64decode(value.split(',')[1])
-                return value
-            except:
-                raise serializers.ValidationError("Invalid base64 image data")
-        # Принимаем обычный base64 без префикса
-        try:
-            base64.b64decode(value)
-            return value
-        except:
-            raise serializers.ValidationError("Invalid base64 image data")
+                format, imgstr = data.split(';base64,')
+                ext = format.split('/')[-1]
+
+                # Проверяем расширение
+                if ext not in ['jpeg', 'jpg', 'png', 'gif', 'bmp']:
+                    raise serializers.ValidationError(f"Неподдерживаемый формат изображения: {ext}")
+
+                # Декодируем base64
+                decoded_file = base64.b64decode(imgstr)
+
+                # Генерируем уникальное имя файла
+                file_name = f"{uuid.uuid4().hex[:10]}.{ext}"
+                data = ContentFile(decoded_file, name=file_name)
+
+            except ValueError as e:
+                raise serializers.ValidationError(f"Неверный формат base64: {str(e)}")
+            except Exception as e:
+                raise serializers.ValidationError(f"Ошибка обработки изображения: {str(e)}")
+
+        return super().to_internal_value(data)
+
+
+class ImageSerializer(serializers.ModelSerializer):
+    image = Base64ImageField(required=True)
+
+    class Meta:
+        model = Image
+        fields = ['image', 'title']
+        extra_kwargs = {
+            'title': {'required': True}
+        }
 
 
 class PerevalSerializer(serializers.Serializer):
@@ -101,6 +123,11 @@ class PerevalSerializer(serializers.Serializer):
         """Общая валидация"""
         if 'images' not in data or not data['images']:
             raise serializers.ValidationError("Необходимо хотя бы одно изображение")
+
+        # Проверяем, что не больше 10 изображений
+        if len(data['images']) > 10:
+            raise serializers.ValidationError("Максимальное количество изображений - 10")
+
         return data
 
 
@@ -118,6 +145,11 @@ class PerevalUpdateSerializer(serializers.Serializer):
         """Проверяем, что есть хотя бы одно поле для обновления"""
         if not data:
             raise serializers.ValidationError("Нет данных для обновления")
+
+        # Проверяем количество изображений при обновлении
+        if 'images' in data and len(data['images']) > 10:
+            raise serializers.ValidationError("Максимальное количество изображений - 10")
+
         # Проверяем, чтобы не было полей пользователя
         if any(field in data for field in ['email', 'fam', 'name', 'otc', 'phone']):
             raise serializers.ValidationError("Изменение данных пользователя запрещено")
