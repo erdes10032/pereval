@@ -1,15 +1,15 @@
-# data_processor.py - только логика работы с БД
 import os
 import psycopg2
 from psycopg2 import sql
 from datetime import datetime
+import json
 import logging
 
 logger = logging.getLogger(__name__)
 
 
 class DatabaseConnector:
-    """Класс для подключения к базе данных с использованием переменных окружения"""
+    """Класс для подключения к базе данных"""
 
     def __init__(self):
         self.conn = None
@@ -18,7 +18,6 @@ class DatabaseConnector:
     def connect(self):
         """Установка соединения с БД"""
         try:
-            # ИСПОЛЬЗОВАНИЕ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ - ДОПОЛНИТЕЛЬНЫЕ 5 БАЛЛОВ
             self.conn = psycopg2.connect(
                 host=os.getenv('FSTR_DB_HOST', 'localhost'),
                 port=os.getenv('FSTR_DB_PORT', '5432'),
@@ -27,10 +26,10 @@ class DatabaseConnector:
                 password=os.getenv('FSTR_DB_PASS', '')
             )
             self.cursor = self.conn.cursor()
-            logger.info("Успешное подключение к базе данных")
+            logger.info("Successfully connected to database")
             return True
         except Exception as e:
-            logger.error(f"Ошибка подключения к БД: {e}")
+            logger.error(f"Database connection error: {e}")
             return False
 
     def disconnect(self):
@@ -40,103 +39,19 @@ class DatabaseConnector:
         if self.conn:
             self.conn.close()
 
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.disconnect()
+
 
 class PerevalDataProcessor:
-    """Класс для обработки данных перевалов"""
+    """Класс для обработки данных перевалов с нормализованной структурой"""
 
     def __init__(self):
         self.db = DatabaseConnector()
-
-    def submit_data(self, data):
-        """
-        Основной метод для добавления данных о перевале
-        Возвращает словарь с результатом операции
-        """
-        # Проверка обязательных полей
-        required_fields = ['beauty_title', 'title', 'user', 'coords', 'level']
-        missing_fields = []
-
-        for field in required_fields:
-            if field not in data:
-                missing_fields.append(field)
-
-        if missing_fields:
-            return {
-                "status": 400,
-                "message": f"Отсутствуют обязательные поля: {', '.join(missing_fields)}",
-                "id": None
-            }
-
-        try:
-            # Подключение к БД
-            if not self.db.connect():
-                return {
-                    "status": 500,
-                    "message": "Ошибка подключения к базе данных",
-                    "id": None
-                }
-
-            # Начинаем транзакцию
-            self.db.cursor.execute("BEGIN")
-
-            # 1. Создаем/получаем пользователя
-            user_id = self._create_or_get_user(data['user'])
-
-            # 2. Создаем координаты
-            coords_id = self._create_coords(data['coords'])
-
-            # 3. Создаем уровень сложности
-            level_id = self._create_level(data['level'])
-
-            # 4. Создаем перевал С ПОЛЕМ STATUS = 'new'
-            add_time = data.get("add_time", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-
-            insert_query = sql.SQL("""
-                INSERT INTO pereval (
-                    beauty_title, title, other_titles, connect, 
-                    add_time, user_id, coords_id, level_id, status
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """)
-
-            self.db.cursor.execute(insert_query, (
-                data['beauty_title'],
-                data['title'],
-                data.get('other_titles', ''),
-                data.get('connect', ''),
-                add_time,
-                user_id,
-                coords_id,
-                level_id,
-                'new'  # СТАТУС ПО УМОЛЧАНИЮ - ВЫПОЛНЕНИЕ ЗАДАНИЯ 1
-            ))
-
-            # Получаем ID вставленного перевала
-            pereval_id = self.db.cursor.fetchone()[0]
-
-            # Фиксируем транзакцию
-            self.db.conn.commit()
-
-            return {
-                "status": 200,
-                "message": "Данные успешно добавлены",
-                "id": pereval_id
-            }
-
-        except Exception as e:
-            if self.db.conn:
-                self.db.conn.rollback()
-
-            logger.error(f"Ошибка при добавлении данных: {e}")
-            return {
-                "status": 500,
-                "message": f"Ошибка при выполнении операции: {str(e)}",
-                "id": None
-            }
-
-        finally:
-            self.db.disconnect()
 
     def _create_or_get_user(self, user_data):
         """Создает или получает существующего пользователя"""
