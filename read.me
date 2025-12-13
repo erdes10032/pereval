@@ -1,0 +1,498 @@
+# Pereval API
+
+REST API для Федераций Спортивного Туризма России (ФСТР). Система
+предназначена для сбора и управления данными о перевалах, которые
+пользователи проходят во время походов.
+
+## Задача проекта
+
+Создать современное REST API, которое позволяет: - Туристам отправлять
+информацию о новых перевалах в формализованном виде - Модераторам
+проверять и оценивать эти данные - Управлять статусами отправленных
+данных (новый/принят/отклонен) - Предоставлять возможность
+редактирования данных, пока они находятся в статусе "новый"
+
+## Основные возможности
+
+-   **Создание записей о перевалах с полной информацией**
+-   **Получение записей по ID или email пользователя**
+-   **Обновление данных (только для записей со статусом "новый")**
+-   **Валидация данных на всех этапах**
+-   **Загрузка изображений в формате base64**
+-   **Автоматическая документация через Swagger/ReDoc**
+-   **Админ-панель для управления данными**
+-   **Логирование всех операций**
+
+## Модели данных
+
+### Пользователь (User)
+
+-   email (уникальный)
+-   Фамилия, Имя, Отчество
+-   Телефон
+
+### Координаты (Coords)
+
+-   Широта, Долгота (десятичные градусы)
+-   Высота (метры)
+
+### Уровень сложности (Level)
+
+-   Сложность по сезонам: зима, лето, осень, весна
+
+### Перевал (Pereval)
+
+-   Красивое название, Название, Другие названия
+-   Что соединяет (текстовое описание)
+-   Пользователь (связь 1:М)
+-   Координаты (связь 1:1)
+-   Уровень сложности (связь 1:1)
+-   Статус: новый/в работе/принят/отклонен
+
+### Изображение (Image)
+
+-   Изображение перевала (загружаемый файл)
+-   Название изображения
+-   Связь с перевалом (1:M)
+
+## Технологии
+
+-   **Backend**: Django 6.0 + Django REST Framework
+-   **Database**: PostgreSQL
+-   **Documentation**: Swagger/ReDoc (drf-yasg)
+-   **Deployment**: Yandex Cloud
+-   **Containerization**: Docker (опционально)
+
+## Deployment
+
+Проект развернут на Yandex Cloud и доступен по следующим адресам:
+
+### Основные URL (Yandex Cloud)
+
+-   **API Endpoint**: `http://158.160.55.233:8000/`
+-   **Swagger UI**: `http://158.160.55.233:8000/swagger/`
+-   **ReDoc**: `http://158.160.55.233:8000/redoc/`
+-   **Admin Panel**: `http://158.160.55.233:8000/admin/`
+
+### Для локальной разработки
+
+-   **API Endpoint**: `http://127.0.0.1:8000/`
+-   **Swagger UI**: `http://127.0.0.1:8000/swagger/`
+-   **ReDoc**: `http://127.0.0.1:8000/redoc/`
+-   **Admin Panel**: `http://127.0.0.1:8000/admin/`
+
+## Установка
+
+### Клонировать репозиторий
+
+``` bash
+git clone <repository-url>
+cd pereval_project
+```
+
+### Создать виртуальное окружение
+
+``` bash
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# или
+venv\Scripts\activate  # Windows
+```
+
+### Установить зависимости
+
+``` bash
+pip install -r requirements.txt
+```
+
+### Настроить переменные окружения
+
+``` bash
+# Создать файл .env в корне проекта
+echo "FSTR_DB_NAME=pereval" > .env
+echo "FSTR_DB_LOGIN=postgres" >> .env
+echo "FSTR_DB_PASS=your_password" >> .env
+echo "FSTR_DB_HOST=localhost" >> .env
+echo "FSTR_DB_PORT=5432" >> .env
+```
+
+### Создать базу данных в PostgreSQL
+
+``` sql
+CREATE DATABASE pereval;
+CREATE USER pereval_user WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE pereval TO pereval_user;
+```
+
+### Выполнить миграции
+
+``` bash
+python manage.py makemigrtaions
+python manage.py migrate
+```
+
+### Запустить сервер
+
+``` bash
+python manage.py runserver
+```
+
+## API Документация
+
+### Базовые методы
+
+  ----------------------------------------------------------------------------------
+  Метод              Эндпоинт                             Описание
+  ------------------ ------------------------------------ --------------------------
+  `POST`             `/submitData/`                       Создание новой записи о
+                                                          перевале
+
+  `GET`              `/submitData/?user__email=<email>`   Получение всех записей по
+                                                          email пользователя
+
+  `GET`              `/submitData/<id>/`                  Получение записи по ID
+
+  `PATCH`            `/submitData/<id>/`                  Обновление записи (только
+                                                          статус "новый")
+  ----------------------------------------------------------------------------------
+
+### 1. Создание новой записи о перевале
+
+**Метод:** `POST /submitData/`
+
+**Описание:** Создает новую запись о перевале. Все данные, включая
+изображения, передаются в одном запросе
+
+**Пример запроса (curl):**
+
+``` bash
+curl -X POST "http://127.0.0.1:8000/submitData/" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "beauty_title": "пер. ",
+           "title": "Турист",
+           "other_titles": "Турист",
+           "connect": "",
+           "user": {
+               "email": "test@example.com",
+               "fam": "Иванов",
+               "name": "Иван",
+               "otc": "Иванович",
+               "phone": "+79991234567"
+           },
+           "coords": {
+               "latitude": 45.3842,
+               "longitude": 7.1525,
+               "height": 1200
+           },
+           "level": {
+               "winter": "",
+               "summer": "1А",
+               "autumn": "1А",
+               "spring": ""
+           },
+           "images": [
+               {
+                   "image": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABykX//Z",
+                   "title": "Вид с перевала"
+               }
+           ]
+         }'
+```
+
+**Пример запроса для вызова с хостинга (curl):**
+
+``` bash
+curl -X POST "http://158.160.55.233:8000/submitData/" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "beauty_title": "пер. ",
+           "title": "Турист",
+           "other_titles": "Турист",
+           "connect": "",
+           "user": {
+               "email": "test@example.com",
+               "fam": "Иванов",
+               "name": "Иван",
+               "otc": "Иванович",
+               "phone": "+79991234567"
+           },
+           "coords": {
+               "latitude": 45.3842,
+               "longitude": 7.1525,
+               "height": 1200
+           },
+           "level": {
+               "winter": "",
+               "summer": "1А",
+               "autumn": "1А",
+               "spring": ""
+           },
+           "images": [
+               {
+                   "image": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABykX//Z",
+                   "title": "Вид с перевала"
+               }
+           ]
+         }'
+```
+
+**Пример ответа - успех:**
+
+``` json
+{
+  "status": 200,
+  "message": "Отправлено успешно",
+  "id": 123
+}
+```
+
+**Пример ответа - ошибка:**
+
+``` json
+{
+  "status": 400,
+  "message": "Bad Request",
+  "id": null,
+  "errors": {
+    "user": {
+      "email": ["Это поле обязательно."]
+    }
+  }
+}
+```
+
+### 2. Получение записей по email пользователя
+
+**Метод:** `GET /submitData/?user__email=<email>`
+
+**Описание:** Возвращает все записи перевалов, созданные пользователем с
+указанным email
+
+**Пример запроса (curl):**
+
+``` bash
+curl -X GET "http://127.0.0.1:8000/submitData/?user__email=test@example.com"
+```
+
+**Пример запроса для вызова с хостинга (curl):**
+
+``` bash
+curl -X GET "http://158.160.55.233:8000/submitData/?user__email=test@example.com"
+```
+
+**Пример ответа:**
+
+``` json
+{
+    "status": 200,
+    "message": "Найдено 2 перевалов",
+    "data": [
+        {
+            "id": 123,
+            "beauty_title": "пер. ",
+            "title": "Турист",
+            "other_titles": "Турист",
+            "connect": "",
+            "add_time": "2024-01-20T10:30:00Z",
+            "status": "new",
+            "user": {
+                "email": "test@example.com",
+                "fam": "Иванов",
+                "name": "Иван",
+                "otc": "Иванович",
+                "phone": "+79991234567"
+            },
+            "coords": {
+                "latitude": 45.3842,
+                "longitude": 7.1525,
+                "height": 1200
+            },
+            "level": {
+                "winter": "",
+                "summer": "1А",
+                "autumn": "1А",
+                "spring": ""
+            },
+            "images": [
+                {
+                    "image_url": "http://158.160.55.233:8000/media/pereval_images/2024/01/20/abc123.jpg",
+                    "title": "Вид с перевала"
+                }
+            ]
+        }
+    ]
+}
+```
+
+### 3. Получение записи по ID
+
+**Метод:** `GET /submitData/<id>/`
+
+**Описание:** Возвращает детальную информацию о перевале по его ID
+
+**Пример запроса (curl):**
+
+``` bash
+curl -X GET "http://127.0.0.1:8000/submitData/123/"
+```
+
+**Пример запроса для вызова с хостинга (curl):**
+
+``` bash
+curl -X GET "http://158.160.55.233:8000/submitData/123/"
+```
+
+**Пример ответа:**
+
+``` json
+{
+    "status": 200,
+    "message": "Найдено",
+    "data": {
+        "id": 123,
+        "beauty_title": "пер. ",
+        "title": "Турист",
+        "other_titles": "Турист",
+        "connect": "",
+        "add_time": "2024-01-20T10:30:00Z",
+        "status": "new",
+        "user": {
+            "email": "test@example.com",
+            "fam": "Иванов",
+            "name": "Иван",
+            "otc": "Иванович",
+            "phone": "+79991234567"
+        },
+        "coords": {
+            "latitude": 45.3842,
+            "longitude": 7.1525,
+            "height": 1200
+        },
+        "level": {
+            "winter": "",
+            "summer": "1А",
+            "autumn": "1А",
+            "spring": ""
+        },
+        "images": [
+            {
+                "image_url": "http://158.160.55.233:8000/media/pereval_images/2024/01/20/abc123.jpg",
+                "title": "Вид с перевала"
+            }
+        ]
+    }
+}
+```
+
+### 4. Обновление записи
+
+**Метод:** `PATCH /submitData/<id>/`
+
+**Описание:** Обновляет запись о перевале. Обновление возможно только
+для записей со статусом "new"
+
+**Пример запроса (curl):**
+
+``` bash
+curl -X PATCH "http://127.0.0.1:8000/submitData/123/" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "title": "Турист (обновленный)",
+           "coords": {
+               "height": 1250
+           },
+           "level": {
+               "summer": "2А"
+           }
+         }'
+```
+
+**Пример запроса для вызова с хостинга (curl):**
+
+``` bash
+curl -X PATCH "http://158.160.55.233:8000/submitData/123/" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "title": "Турист (обновленный)",
+           "coords": {
+               "height": 1250
+           },
+           "level": {
+               "summer": "2А"
+           }
+         }'
+```
+
+**Пример ответа - успех:**
+
+``` json
+{
+    "state": 1,
+    "message": "Запись успешно обновлена"
+}
+```
+
+**Пример ответа - ошибка:**
+
+``` json
+{
+    "state": 0,
+    "message": "Редактирование запрещено. Текущий статус: В работе"
+}
+```
+
+## Коды ответов
+
+-   **200 - Успешный запрос**
+-   **400 - Ошибка валидации данных**
+-   **404 - Запись не найдена**
+-   **500 - Внутренняя ошибка сервера**
+
+## Тестирование
+
+``` bash
+# Запуск всех тестов
+python manage.py test
+# Запуск тестов с подробным выводом
+python manage.py test --verbosity=2
+# Запуск конкретного теста
+python manage.py test pereval_app.tests.APITests.'test_name'
+```
+
+## Правила валидации и ограничения
+
+### Для создания записи:
+
+-   Обязательные поля: beauty_title, title, user, coords, level, images
+-   В user обязательны: email, fam, name, phone
+-   В coords обязательны: latitude, longitude, height
+-   Минимум 1 изображение, максимум 10 изображений
+-   Email пользователя должен быть уникальным
+
+### Для обновления записи:
+
+-   Только записи со статусом new можно редактировать
+-   Запрещено изменять данные пользователя (email, ФИО, телефон)
+-   При обновлении изображений старые удаляются
+-   Можно обновлять любые другие поля перевала
+
+### Формат изображений:
+
+-   Изображения передаются в формате base64
+-   Поддерживаемые форматы: JPEG, PNG, GIF, BMP
+-   Формат данных: data:image/jpeg;base64,`<данные>`{=html}
+-   Максимальный размер: определяется настройками Django
+
+## Технические детали
+
+### База данных
+
+-   Используется PostgreSQL
+-   Все таблицы имеют префикс pereval\_
+-   Настроены связи между таблицами (ForeignKey)
+
+### Логирование
+
+-   Логи пишутся в файл pereval.log
+-   Уровень логирования: DEBUG для приложения, INFO для консоли
