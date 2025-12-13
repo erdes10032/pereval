@@ -4,6 +4,8 @@ from rest_framework import status
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
 import logging
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 from .serializers import PerevalSerializer, PerevalUpdateSerializer
 from .models import Pereval, User, Coords, Level, Image
@@ -18,6 +20,110 @@ class SubmitDataView(APIView):
     GET /submitData/?user__email=<email> - получение записей по email
     """
 
+    @swagger_auto_schema(
+        operation_description="Получение списка перевалов по email пользователя",
+        manual_parameters=[
+            openapi.Parameter(
+                'user__email',
+                openapi.IN_QUERY,
+                description="Email пользователя для фильтрации",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="Успешный запрос",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'data': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    'beauty_title': openapi.Schema(type=openapi.TYPE_STRING),
+                                    'title': openapi.Schema(type=openapi.TYPE_STRING),
+                                    'other_titles': openapi.Schema(type=openapi.TYPE_STRING),
+                                    'connect': openapi.Schema(type=openapi.TYPE_STRING),
+                                    'add_time': openapi.Schema(type=openapi.TYPE_STRING, format='date-time'),
+                                    'status': openapi.Schema(type=openapi.TYPE_STRING),
+                                    'user': openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            'email': openapi.Schema(type=openapi.TYPE_STRING),
+                                            'fam': openapi.Schema(type=openapi.TYPE_STRING),
+                                            'name': openapi.Schema(type=openapi.TYPE_STRING),
+                                            'otc': openapi.Schema(type=openapi.TYPE_STRING),
+                                            'phone': openapi.Schema(type=openapi.TYPE_STRING),
+                                        }
+                                    ),
+                                    'coords': openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            'latitude': openapi.Schema(type=openapi.TYPE_NUMBER, format='float'),
+                                            'longitude': openapi.Schema(type=openapi.TYPE_NUMBER, format='float'),
+                                            'height': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        }
+                                    ),
+                                    'level': openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            'winter': openapi.Schema(type=openapi.TYPE_STRING),
+                                            'summer': openapi.Schema(type=openapi.TYPE_STRING),
+                                            'autumn': openapi.Schema(type=openapi.TYPE_STRING),
+                                            'spring': openapi.Schema(type=openapi.TYPE_STRING),
+                                        }
+                                    ),
+                                    'images': openapi.Schema(
+                                        type=openapi.TYPE_ARRAY,
+                                        items=openapi.Schema(
+                                            type=openapi.TYPE_OBJECT,
+                                            properties={
+                                                'image_url': openapi.Schema(type=openapi.TYPE_STRING),
+                                                'title': openapi.Schema(type=openapi.TYPE_STRING),
+                                            }
+                                        )
+                                    )
+                                }
+                            )
+                        )
+                    }
+                )
+            ),
+            400: openapi.Response(
+                description="Не указан email",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'data': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_OBJECT)
+                        )
+                    }
+                )
+            ),
+            500: openapi.Response(
+                description="Внутренняя ошибка сервера",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'data': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_OBJECT)
+                        )
+                    }
+                )
+            )
+        }
+    )
     def get(self, request):
         """GET метод - получение перевалов по email"""
         try:
@@ -63,6 +169,46 @@ class SubmitDataView(APIView):
                 "data": []
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @swagger_auto_schema(
+        operation_description="Создание новой записи о перевале",
+        request_body=PerevalSerializer,
+        responses={
+            200: openapi.Response(
+                description="Запись успешно создана",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                    }
+                )
+            ),
+            400: openapi.Response(
+                description="Ошибка валидации",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'id': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                        'errors': openapi.Schema(type=openapi.TYPE_OBJECT),
+                    }
+                )
+            ),
+            500: openapi.Response(
+                description="Внутренняя ошибка сервера",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'id': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                    }
+                )
+            )
+        }
+    )
     def post(self, request):
         try:
             serializer = PerevalSerializer(data=request.data)
@@ -177,6 +323,92 @@ class PerevalDetailView(APIView):
     PATCH /submitData/<id>/ - обновление перевала по ID
     """
 
+    @swagger_auto_schema(
+        operation_description="Получение информации о перевале по ID",
+        responses={
+            200: openapi.Response(
+                description="Перевал найден",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'data': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                'beauty_title': openapi.Schema(type=openapi.TYPE_STRING),
+                                'title': openapi.Schema(type=openapi.TYPE_STRING),
+                                'other_titles': openapi.Schema(type=openapi.TYPE_STRING),
+                                'connect': openapi.Schema(type=openapi.TYPE_STRING),
+                                'add_time': openapi.Schema(type=openapi.TYPE_STRING, format='date-time'),
+                                'status': openapi.Schema(type=openapi.TYPE_STRING),
+                                'user': openapi.Schema(
+                                    type=openapi.TYPE_OBJECT,
+                                    properties={
+                                        'email': openapi.Schema(type=openapi.TYPE_STRING),
+                                        'fam': openapi.Schema(type=openapi.TYPE_STRING),
+                                        'name': openapi.Schema(type=openapi.TYPE_STRING),
+                                        'otc': openapi.Schema(type=openapi.TYPE_STRING),
+                                        'phone': openapi.Schema(type=openapi.TYPE_STRING),
+                                    }
+                                ),
+                                'coords': openapi.Schema(
+                                    type=openapi.TYPE_OBJECT,
+                                    properties={
+                                        'latitude': openapi.Schema(type=openapi.TYPE_NUMBER, format='float'),
+                                        'longitude': openapi.Schema(type=openapi.TYPE_NUMBER, format='float'),
+                                        'height': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    }
+                                ),
+                                'level': openapi.Schema(
+                                    type=openapi.TYPE_OBJECT,
+                                    properties={
+                                        'winter': openapi.Schema(type=openapi.TYPE_STRING),
+                                        'summer': openapi.Schema(type=openapi.TYPE_STRING),
+                                        'autumn': openapi.Schema(type=openapi.TYPE_STRING),
+                                        'spring': openapi.Schema(type=openapi.TYPE_STRING),
+                                    }
+                                ),
+                                'images': openapi.Schema(
+                                    type=openapi.TYPE_ARRAY,
+                                    items=openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            'image_url': openapi.Schema(type=openapi.TYPE_STRING),
+                                            'title': openapi.Schema(type=openapi.TYPE_STRING),
+                                        }
+                                    )
+                                )
+                            }
+                        )
+                    }
+                )
+            ),
+            404: openapi.Response(
+                description="Перевал не найден",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'id': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                    }
+                )
+            ),
+            500: openapi.Response(
+                description="Внутренняя ошибка сервера",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'id': openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                    }
+                )
+            )
+        }
+    )
     def get(self, request, id):
         """GET метод - получение перевала по ID"""
         try:
@@ -245,6 +477,52 @@ class PerevalDetailView(APIView):
                 "id": None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @swagger_auto_schema(
+        operation_description="Обновление данных о перевале",
+        request_body=PerevalUpdateSerializer,
+        responses={
+            200: openapi.Response(
+                description="Запись успешно обновлена",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'state': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                    }
+                )
+            ),
+            400: openapi.Response(
+                description="Ошибка валидации или редактирование запрещено",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'state': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                    }
+                )
+            ),
+            404: openapi.Response(
+                description="Перевал не найден",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'state': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                    }
+                )
+            ),
+            500: openapi.Response(
+                description="Внутренняя ошибка сервера",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'state': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                    }
+                )
+            )
+        }
+    )
     def patch(self, request, id):
         """PATCH метод - обновление перевала"""
         try:

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'pereval_app',
     'rest_framework',
+    'drf_yasg',
 
 ]
 
@@ -81,7 +82,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('FSTR_DB_NAME', 'pereval'),
         'USER': os.getenv('FSTR_DB_LOGIN', 'postgres'),
-        'PASSWORD': os.getenv('FSTR_DB_PASS', ''),
+        'PASSWORD': os.getenv('FSTR_DB_PASS', '123'),
         'HOST': os.getenv('FSTR_DB_HOST', 'localhost'),
         'PORT': os.getenv('FSTR_DB_PORT', '5432'),
     }
