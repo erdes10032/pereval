@@ -85,9 +85,6 @@ DATABASES = {
         'PASSWORD': os.getenv('FSTR_DB_PASS', '123'),
         'HOST': os.getenv('FSTR_DB_HOST', 'localhost'),
         'PORT': os.getenv('FSTR_DB_PORT', '5432'),
-        'OPTIONS': {
-            'sslmode': 'require',
-        }
     }
 }
 
