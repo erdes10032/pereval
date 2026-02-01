@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ${FSTR_DB_NAME}
+      POSTGRES_USER: ${FSTR_DB_LOGIN}
+      POSTGRES_PASSWORD: ${FSTR_DB_PASS}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${FSTR_DB_PORT}:5432"
+    networks:
+      - pereval-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${FSTR_DB_LOGIN}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    command: >
+      sh -c "python manage.py migrate &&
+             sudo python manage.py collectstatic --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+      - media_volume:/app/media
+      - static_volume:/app/staticfiles
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - FSTR_DB_HOST=db
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - pereval-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  media_volume:
+  static_volume:
+
+networks:
+  pereval-network:
+    driver: bridge
