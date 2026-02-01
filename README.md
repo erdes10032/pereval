@@ -53,50 +53,36 @@ REST API для Федерации Спортивного Туризма Рос�
 - **Backend**: Django 6.0 + Django REST Framework
 - **Database**: PostgreSQL
 - **Documentation**: Swagger/ReDoc (drf-yasg)
-- **Deployment**: Yandex Cloud
-- **Containerization**: Docker (опционально)
+- **Containerization**: Docker
 
 ## Deployment
 
-Проект развернут на Yandex Cloud и доступен по следующим адресам:
-
-### Основные URL (Yandex Cloud)
-- **API Endpoint**: `http://158.160.55.233:8000/`
-- **Swagger UI**: `http://158.160.55.233:8000/swagger/`
-- **ReDoc**: `http://158.160.55.233:8000/redoc/`
-- **Admin Panel**: `http://158.160.55.233:8000/admin/`
-
-### Для локальной разработки
-- **API Endpoint**: `http://127.0.0.1:8000/`
-- **Swagger UI**: `http://127.0.0.1:8000/swagger/`
-- **ReDoc**: `http://127.0.0.1:8000/redoc/`
-- **Admin Panel**: `http://127.0.0.1:8000/admin/`
+### Основные адреса
+- **API Endpoint**: `http://localhost:8000/`
+- **Swagger UI**: `http://localhost:8000/swagger/`
+- **ReDoc**: `http://localhost:8000/redoc/`
+- **Admin Panel**: `http://localhost:8000/admin/`
 
 ## Установка
 
-### Клонировать репозиторий
+### Способ 1: Локальная установка
+
+**1. Клонировать репозиторий**
 
 ```bash
-git clone <repository-url>
-cd pereval_project
+git clone https://github.com/erdes10032/pereval.git
+cd pereval
 ```
 
-### Создать виртуальное окружение
+**2. Заполнить файл .env своими данными**
 
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# или
-venv\Scripts\activate  # Windows
-```
-
-### Установить зависимости
+**3. Установить зависимости**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Настроить переменные окружения
+**4. Настроить переменные окружения**
 
 ```bash
 # Создать файл .env в корне проекта
@@ -107,7 +93,7 @@ echo "FSTR_DB_HOST=localhost" >> .env
 echo "FSTR_DB_PORT=5432" >> .env
 ```
 
-### Создать базу данных в PostgreSQL
+**5. Создать базу данных в PostgreSQL**
 
 ```sql
 CREATE DATABASE pereval;
@@ -115,17 +101,43 @@ CREATE USER pereval_user WITH PASSWORD 'your_password';
 GRANT ALL PRIVILEGES ON DATABASE pereval TO pereval_user;
 ```
 
-### Выполнить миграции
+**6. Выполнить миграции**
 
 ```bash
 python manage.py makemigrtaions
 python manage.py migrate
 ```
 
-### Запустить сервер
+**7. Запустить сервер**
 
 ```bash
 python manage.py runserver
+```
+
+### Способ 2: Docker-установка
+
+**1. Клонировать репозиторий**
+
+```bash
+git clone https://github.com/erdes10032/pereval.git
+cd pereval
+```
+
+**2. Заполнить файл .env своими данными**
+
+**3. Запустить проект с помощью Docker Compose**
+```bash
+docker-compose up --build
+```
+
+**4. Остановить проект (опционально)**
+```bash
+docker-compose down
+```
+
+**5. Остановить проект с удалением всех данных (опционально)**
+```bash
+docker-compose down -v --rmi all
 ```
 
 ## API Документация
@@ -147,7 +159,7 @@ python manage.py runserver
 
 **Пример запроса (curl):**
 ```bash
-curl -X POST "http://127.0.0.1:8000/submitData/" \
+curl -X POST "http://localhost:8000/submitData/" \
      -H "Content-Type: application/json" \
      -d '{
            "beauty_title": "пер. ",
@@ -183,7 +195,7 @@ curl -X POST "http://127.0.0.1:8000/submitData/" \
 
 **Пример запроса для вызова с хостинга (curl):**
 ```bash
-curl -X POST "http://158.160.55.233:8000/submitData/" \
+curl -X POST "http://localhost:8000/submitData/" \
      -H "Content-Type: application/json" \
      -d '{
            "beauty_title": "пер. ",
@@ -247,12 +259,12 @@ curl -X POST "http://158.160.55.233:8000/submitData/" \
 
 **Пример запроса (curl):**
 ```bash
-curl -X GET "http://127.0.0.1:8000/submitData/?user__email=test@example.com"
+curl -X GET "http://localhost:8000/submitData/?user__email=test@example.com"
 ```
 
 **Пример запроса для вызова с хостинга (curl):**
 ```bash
-curl -X GET "http://158.160.55.233:8000/submitData/?user__email=test@example.com"
+curl -X GET "http://localhost:8000/submitData/?user__email=test@example.com"
 ```
 
 **Пример ответа:**
@@ -289,7 +301,7 @@ curl -X GET "http://158.160.55.233:8000/submitData/?user__email=test@example.com
             },
             "images": [
                 {
-                    "image_url": "http://158.160.55.233:8000/media/pereval_images/2024/01/20/abc123.jpg",
+                    "image_url": "http://localhost:8000/media/pereval_images/2024/01/20/abc123.jpg",
                     "title": "Вид с перевала"
                 }
             ]
@@ -306,12 +318,12 @@ curl -X GET "http://158.160.55.233:8000/submitData/?user__email=test@example.com
 
 **Пример запроса (curl):**
 ```bash
-curl -X GET "http://127.0.0.1:8000/submitData/123/"
+curl -X GET "http://localhost:8000/submitData/123/"
 ```
 
 **Пример запроса для вызова с хостинга (curl):**
 ```bash
-curl -X GET "http://158.160.55.233:8000/submitData/123/"
+curl -X GET "http://localhost:8000/submitData/123/"
 ```
 
 **Пример ответа:**
@@ -347,7 +359,7 @@ curl -X GET "http://158.160.55.233:8000/submitData/123/"
         },
         "images": [
             {
-                "image_url": "http://158.160.55.233:8000/media/pereval_images/2024/01/20/abc123.jpg",
+                "image_url": "http://localhost:8000/media/pereval_images/2024/01/20/abc123.jpg",
                 "title": "Вид с перевала"
             }
         ]
@@ -363,7 +375,7 @@ curl -X GET "http://158.160.55.233:8000/submitData/123/"
 
 **Пример запроса (curl):**
 ```bash
-curl -X PATCH "http://127.0.0.1:8000/submitData/123/" \
+curl -X PATCH "http://localhost:8000/submitData/123/" \
      -H "Content-Type: application/json" \
      -d '{
            "title": "Турист (обновленный)",
@@ -378,7 +390,7 @@ curl -X PATCH "http://127.0.0.1:8000/submitData/123/" \
 
 **Пример запроса для вызова с хостинга (curl):**
 ```bash
-curl -X PATCH "http://158.160.55.233:8000/submitData/123/" \
+curl -X PATCH "http://localhost:8000/submitData/123/" \
      -H "Content-Type: application/json" \
      -d '{
            "title": "Турист (обновленный)",
@@ -417,10 +429,15 @@ curl -X PATCH "http://158.160.55.233:8000/submitData/123/" \
 ## Тестирование
 
 ```bash
+# Если приложение запущено в докере, то нужно войти в контейнер
+docker-compose exec web bash
+
 # Запуск всех тестов
 python manage.py test
+
 # Запуск тестов с подробным выводом
 python manage.py test --verbosity=2
+
 # Запуск конкретного теста
 python manage.py test pereval_app.tests.APITests.'test_name'
 ```
